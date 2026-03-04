@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -8,7 +9,7 @@ from datetime import datetime, timezone
 @dataclass
 class TaskStatus:
     task_id: str
-    status: str = "pending"  # pending | running | completed | failed
+    status: str = "pending"  # pending | running | completed | failed | cancelled
     done: int = 0
     total: int = 0
     message: str = ""
@@ -28,12 +29,52 @@ class TaskStatus:
 
 
 _store: dict[str, TaskStatus] = {}
+_async_tasks: dict[str, asyncio.Task] = {}
+_active_scrapes: dict[str, str] = {}  # scrape_key -> task_id
 
 
 def create_task() -> TaskStatus:
     task = TaskStatus(task_id=uuid.uuid4().hex[:12])
     _store[task.task_id] = task
     return task
+
+
+def register_async_task(task_id: str, async_task: asyncio.Task) -> None:
+    _async_tasks[task_id] = async_task
+
+
+def get_active_scrape(scrape_key: str) -> TaskStatus | None:
+    """Return the active task for a scrape key, or None if not running."""
+    task_id = _active_scrapes.get(scrape_key)
+    if task_id is None:
+        return None
+    task = _store.get(task_id)
+    if task and task.status in ("pending", "running"):
+        return task
+    # Stale entry — clean up
+    _active_scrapes.pop(scrape_key, None)
+    return None
+
+
+def set_active_scrape(scrape_key: str, task_id: str) -> None:
+    _active_scrapes[scrape_key] = task_id
+
+
+def clear_active_scrape(scrape_key: str) -> None:
+    _active_scrapes.pop(scrape_key, None)
+
+
+def cancel_task(task_id: str) -> bool:
+    async_task = _async_tasks.get(task_id)
+    if async_task is None or async_task.done():
+        return False
+    async_task.cancel()
+    task = _store.get(task_id)
+    if task:
+        task.status = "cancelled"
+        task.message = "Cancelled by user"
+        task.updated_at = datetime.now(timezone.utc).isoformat()
+    return True
 
 
 def get_task(task_id: str) -> TaskStatus | None:

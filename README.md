@@ -28,11 +28,19 @@ curl -X POST http://localhost:8000/conditions/scrape
 # {"task_id": "a1b2c3d4e5f6"}
 ```
 
-Or scrape a single item by slug:
+Items that have already been scraped are **skipped by default**. To force a full re-scrape (overwrite all existing files):
+
+```bash
+curl -X POST "http://localhost:8000/conditions/scrape?force=true"
+```
+
+Scrape (or re-scrape) a single item by slug — this always overwrites the existing file:
 
 ```bash
 curl -X POST http://localhost:8000/conditions/scrape/acne
 ```
+
+Duplicate scrape requests are rejected with `409 Conflict` if a scrape for the same domain or slug is already running.
 
 ### Poll task progress
 
@@ -41,7 +49,13 @@ curl http://localhost:8000/tasks/{task_id}
 # {"task_id": "...", "status": "running", "done": 42, "total": 950, ...}
 ```
 
-Status values: `pending` → `running` → `completed` or `failed`.
+Status values: `pending` → `running` → `completed` / `failed` / `cancelled`.
+
+### Cancel a running task
+
+```bash
+curl -X POST http://localhost:8000/tasks/{task_id}/cancel
+```
 
 ### Browse scraped content
 

@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from domains.models import TaskStatusResponse
 from domains.router import create_domain_router
 from scraper.client import close_client, init_client
-from tasks import get_task
+from tasks import cancel_task, get_task
 
 
 @asynccontextmanager
@@ -44,3 +44,19 @@ async def task_status(task_id: str) -> TaskStatusResponse:
     if task is None:
         raise HTTPException(404, "Task not found")
     return TaskStatusResponse(**task.to_dict())
+
+
+@app.post(
+    "/tasks/{task_id}/cancel",
+    tags=["tasks"],
+    summary="Cancel a running task",
+    description="Cancel a running background scrape task. Returns confirmation or 404 if the task doesn't exist, 409 if it's already finished.",
+)
+async def cancel_task_endpoint(task_id: str) -> dict:
+    task = get_task(task_id)
+    if task is None:
+        raise HTTPException(404, "Task not found")
+    if task.status in ("completed", "failed", "cancelled"):
+        raise HTTPException(409, f"Task already {task.status}")
+    cancel_task(task_id)
+    return {"task_id": task_id, "status": "cancelled"}
