@@ -3,6 +3,7 @@ name = "nhs-conditions-scraper"
 version = "0.1.0"
 description = "NHS Health A-Z web scraper with FastAPI"
 requires-python = ">=3.12"
+license = "AGPL-3.0-or-later"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.34",
