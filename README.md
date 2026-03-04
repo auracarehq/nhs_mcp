@@ -42,6 +42,14 @@ curl -X POST http://localhost:8000/conditions/scrape/acne
 
 Duplicate scrape requests are rejected with `409 Conflict` if a scrape for the same domain or slug is already running.
 
+### Update stale pages
+
+Re-scrape only items whose `next_review_due` date has passed:
+
+```bash
+curl -X POST http://localhost:8000/conditions/update
+```
+
 ### Poll task progress
 
 ```bash
