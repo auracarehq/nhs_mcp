@@ -4,7 +4,8 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 
-import yaml
+
+from domains.utils import read_frontmatter
 from fastapi import APIRouter, HTTPException
 
 from config import DOMAINS
@@ -22,12 +23,6 @@ from tasks import (
 )
 
 
-def _read_frontmatter(path: Path) -> dict:
-    text = path.read_text(encoding="utf-8")
-    if text.startswith("---"):
-        _, fm, _ = text.split("---", 2)
-        return yaml.safe_load(fm) or {}
-    return {}
 
 
 async def _scrape_all(domain: str, task_id: str, scrape_key: str, *, force: bool = False) -> None:
@@ -100,7 +95,7 @@ def _find_stale_files(data_dir: Path) -> list[tuple[str, str]]:
     now = datetime.now()
     stale: list[tuple[str, str]] = []
     for path in sorted(data_dir.glob("*.md")):
-        fm = _read_frontmatter(path)
+        fm = read_frontmatter(path)
         review_due = fm.get("next_review_due", "")
         if not review_due:
             continue
@@ -235,7 +230,7 @@ def create_domain_router(domain: str, prefix: str) -> APIRouter:
             return []
         items = []
         for path in sorted(data_dir.glob("*.md")):
-            fm = _read_frontmatter(path)
+            fm = read_frontmatter(path)
             items.append(ItemSummary(
                 slug=path.stem,
                 name=fm.get("name", path.stem),
@@ -253,7 +248,7 @@ def create_domain_router(domain: str, prefix: str) -> APIRouter:
         if not path.exists():
             raise HTTPException(404, f"{slug} not found")
         text = path.read_text(encoding="utf-8")
-        fm = _read_frontmatter(path)
+        fm = read_frontmatter(path)
         return ItemContent(
             slug=slug,
             name=fm.get("name", slug),

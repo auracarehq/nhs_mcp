@@ -29,3 +29,9 @@ class ItemContent(BaseModel):
     page_last_reviewed: str
     next_review_due: str
     markdown: str
+
+
+class SearchResult(BaseModel):
+    slug: str
+    name: str
+    domain: str
