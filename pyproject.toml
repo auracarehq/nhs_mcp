@@ -11,6 +11,7 @@ dependencies = [
     "beautifulsoup4>=4.12",
     "markdownify>=0.14",
     "pyyaml>=6.0",
+    "asyncpg>=0.30",
 ]
 
 [dependency-groups]
