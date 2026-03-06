@@ -116,3 +116,32 @@ def test_medicines_router_exists(client):
 def test_treatments_router_exists(client):
     resp = client.get("/treatments/")
     assert resp.status_code == 200
+
+
+def test_search_empty_query(client):
+    resp = client.get("/search")
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+def test_search_returns_matching(client, tmp_data_dir):
+    _write_md(tmp_data_dir / "conditions", "acne", "Acne")
+    _write_md(tmp_data_dir / "conditions", "asthma", "Asthma")
+    resp = client.get("/search?q=acne")
+    assert resp.status_code == 200
+    results = resp.json()
+    assert len(results) == 1
+    assert results[0]["slug"] == "acne"
+    assert results[0]["name"] == "Acne"
+    assert results[0]["domain"] == "conditions"
+
+
+def test_search_cross_domain(client, tmp_data_dir):
+    _write_md(tmp_data_dir / "conditions", "acne", "Acne")
+    _write_md(tmp_data_dir / "medicines", "acne-gel", "Acne Gel")
+    resp = client.get("/search?q=acne")
+    assert resp.status_code == 200
+    results = resp.json()
+    assert len(results) == 2
+    domains = {r["domain"] for r in results}
+    assert domains == {"conditions", "medicines"}
