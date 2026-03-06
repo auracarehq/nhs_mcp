@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException
 
 from pathlib import Path
 
+import db
 from config import DOMAINS
 from domains.models import SearchResult, TaskStatusResponse
 from domains.router import create_domain_router
@@ -14,9 +15,11 @@ from tasks import cancel_task, get_task
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await db.init_db()
     init_client()
     yield
     await close_client()
+    await db.close_db()
 
 
 app = FastAPI(
@@ -79,6 +82,11 @@ async def cancel_task_endpoint(task_id: str) -> dict:
 async def search(q: str = "") -> list[SearchResult]:
     if not q:
         return []
+    pool = db.get_pool()
+    if pool:
+        rows = await db.search_pages(pool, q)
+        return [SearchResult(slug=r["slug"], name=r["name"], domain=r["domain"]) for r in rows]
+    # Filesystem fallback
     lq = q.lower()
     results: list[SearchResult] = []
     for domain, cfg in DOMAINS.items():
