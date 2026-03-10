@@ -2,13 +2,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 
-from pathlib import Path
-
 import db
-from config import DOMAINS
 from domains.models import SearchResult, TaskStatusResponse
-from domains.router import create_domain_router
-from domains.utils import read_frontmatter
+from domains.nhs.conditions.router import router as conditions_router
+from domains.nhs.medicines.router import router as medicines_router
+from domains.nhs.symptoms.router import router as symptoms_router
+from domains.nhs.treatments.router import router as treatments_router
 from scraper.client import close_client, init_client
 from tasks import cancel_task, get_task
 
@@ -25,18 +24,18 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="NHS Health A-Z Scraper",
     description=(
-        "Scrapes the NHS Health A-Z website and saves content as markdown files "
-        "with YAML frontmatter. Covers Conditions, Symptoms, Medicines, and "
+        "Scrapes the NHS Health A-Z website and stores content in PostgreSQL "
+        "as markdown with YAML frontmatter. Covers Conditions, Symptoms, Medicines, and "
         "Tests & Treatments."
     ),
     version="0.1.0",
     lifespan=lifespan,
 )
 
-app.include_router(create_domain_router("conditions", "conditions"))
-app.include_router(create_domain_router("symptoms", "symptoms"))
-app.include_router(create_domain_router("medicines", "medicines"))
-app.include_router(create_domain_router("treatments", "treatments"))
+app.include_router(conditions_router)
+app.include_router(symptoms_router)
+app.include_router(medicines_router)
+app.include_router(treatments_router)
 
 
 @app.get(
@@ -83,19 +82,5 @@ async def search(q: str = "") -> list[SearchResult]:
     if not q:
         return []
     pool = db.get_pool()
-    if pool:
-        rows = await db.search_pages(pool, q)
-        return [SearchResult(slug=r["slug"], name=r["name"], domain=r["domain"]) for r in rows]
-    # Filesystem fallback
-    lq = q.lower()
-    results: list[SearchResult] = []
-    for domain, cfg in DOMAINS.items():
-        data_dir: Path = cfg["data_dir"]
-        if not data_dir.exists():
-            continue
-        for path in sorted(data_dir.glob("*.md")):
-            fm = read_frontmatter(path)
-            name = fm.get("name", path.stem)
-            if lq in name.lower():
-                results.append(SearchResult(slug=path.stem, name=name, domain=domain))
-    return results
+    rows = await db.search_pages(pool, q)
+    return [SearchResult(slug=r["slug"], name=r["name"], domain=r["domain"]) for r in rows]

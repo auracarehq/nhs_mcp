@@ -6,18 +6,21 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
 
-from config import BASE_URL
 from scraper.client import fetch
 
 
 @dataclass
 class Section:
+    """A named section of parsed page content."""
+
     title: str
     html: str
 
 
 @dataclass
 class PageData:
+    """Scraped page with metadata and content sections."""
+
     name: str
     url: str
     sections: list[Section] = field(default_factory=list)

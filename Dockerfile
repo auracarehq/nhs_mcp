@@ -10,9 +10,5 @@ COPY pyproject.toml uv.lock* ./
 RUN uv sync --frozen --no-install-project 2>/dev/null || uv sync --no-install-project
 
 COPY . .
-RUN chmod +x entrypoint.sh
 
 EXPOSE 8000
-
-ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

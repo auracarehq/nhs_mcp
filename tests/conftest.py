@@ -90,14 +90,3 @@ def tabbed_page_html():
 @pytest.fixture
 def tab_causes_html():
     return TAB_CAUSES_HTML
-
-
-@pytest.fixture
-def tmp_data_dir(tmp_path, monkeypatch):
-    import config
-    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
-    # Also patch the domain data dirs
-    for domain_cfg in config.DOMAINS.values():
-        domain_name = domain_cfg["data_dir"].name
-        domain_cfg["data_dir"] = tmp_path / domain_name
-    return tmp_path

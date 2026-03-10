@@ -11,11 +11,13 @@ _semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
 
 def get_client() -> httpx.AsyncClient:
+    """Return the shared HTTP client instance."""
     assert _client is not None, "HTTP client not initialised — call init_client() first"
     return _client
 
 
 def init_client() -> None:
+    """Create the shared HTTP client."""
     global _client
     _client = httpx.AsyncClient(
         headers={"User-Agent": USER_AGENT},
@@ -25,6 +27,7 @@ def init_client() -> None:
 
 
 async def close_client() -> None:
+    """Close and discard the shared HTTP client."""
     global _client
     if _client:
         await _client.aclose()
@@ -32,6 +35,7 @@ async def close_client() -> None:
 
 
 async def fetch(url: str) -> str:
+    """Fetch a URL and return the response body as text."""
     client = get_client()
     async with _semaphore:
         resp = await client.get(url)

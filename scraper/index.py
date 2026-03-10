@@ -5,18 +5,19 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
-from config import BASE_URL
 from scraper.client import fetch
 
 
 @dataclass
 class IndexEntry:
+    """A single item from an NHS A-Z index page."""
+
     name: str
     url: str
     slug: str
 
 
-def parse_index(html: str, base_url: str = BASE_URL) -> list[IndexEntry]:
+def parse_index(html: str, base_url: str = "https://www.nhs.uk") -> list[IndexEntry]:
     """Parse an NHS A-Z index page and return all direct-link entries."""
     soup = BeautifulSoup(html, "html.parser")
     entries: list[IndexEntry] = []
@@ -42,5 +43,6 @@ def parse_index(html: str, base_url: str = BASE_URL) -> list[IndexEntry]:
 
 
 async def scrape_index(index_url: str) -> list[IndexEntry]:
+    """Fetch and parse an NHS A-Z index page."""
     html = await fetch(index_url)
-    return parse_index(html)
+    return parse_index(html, base_url=index_url)

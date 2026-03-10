@@ -1,16 +1,4 @@
 services:
-  app:
-    build: .
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./data:/app/data
-    environment:
-      DATABASE_URL: postgres://nhs:nhs@db:5432/nhs_scraper
-    depends_on:
-      db:
-        condition: service_healthy
-
   db:
     image: postgres:16-alpine
     environment:
@@ -24,8 +12,30 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U nhs -d nhs_scraper"]
       interval: 5s
-      timeout: 5s
+      timeout: 3s
       retries: 5
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgres://nhs:nhs@db:5432/nhs_scraper
+    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      db:
+        condition: service_healthy
+
+  test:
+    build: .
+    command: ["uv", "run", "pytest", "-v"]
+    profiles:
+      - tools
 
 volumes:
   pgdata:
