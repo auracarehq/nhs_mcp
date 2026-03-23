@@ -274,3 +274,130 @@ def test_snomed_delete_concept_not_cached(client):
     with patch("db.delete_snomed_concept", new_callable=AsyncMock, return_value=False):
         resp = client.delete("/snomed/concepts/73211009")
         assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# OpenPrescribing router
+# ---------------------------------------------------------------------------
+
+def test_op_bnf_search_missing_query(client):
+    resp = client.get("/open-prescribing/bnf")
+    assert resp.status_code == 422
+
+
+def test_op_bnf_search_returns_result(client):
+    mock_items = [{"bnf_code": "0601023A0", "name": "Metformin hydrochloride", "dmd_id": "39720411000001102", "is_generic": True}]
+    with patch("domains.open_prescribing.service.search_bnf", new_callable=AsyncMock, return_value=mock_items):
+        resp = client.get("/open-prescribing/bnf?q=metformin")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 1
+        assert data["items"][0]["bnf_code"] == "0601023A0"
+
+
+def test_op_spending_returns_result(client):
+    mock_items = [{"date": "2024-01-01", "bnf_name": "Metformin", "actual_cost": 1000.0, "net_cost": 900.0, "quantity": 500.0, "total_items": 10}]
+    with patch("domains.open_prescribing.service.get_spending", new_callable=AsyncMock, return_value=mock_items):
+        resp = client.get("/open-prescribing/bnf/0601023A0/spending")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["bnf_code"] == "0601023A0"
+        assert len(data["items"]) == 1
+
+
+def test_op_spending_by_org_invalid_type(client):
+    with patch("domains.open_prescribing.service.get_spending_by_org", new_callable=AsyncMock, return_value=[]):
+        resp = client.get("/open-prescribing/bnf/0601023A0/spending-by-org?org_type=invalid")
+        assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# ICD-11 router
+# ---------------------------------------------------------------------------
+
+def test_icd_search_no_credentials(client):
+    with patch.dict("os.environ", {}, clear=True):
+        import os
+        os.environ.pop("ICD_CLIENT_ID", None)
+        os.environ.pop("ICD_CLIENT_SECRET", None)
+        resp = client.get("/icd/concepts?q=diabetes")
+        assert resp.status_code == 503
+
+
+def test_icd_list_cached_empty(client):
+    with patch("db.list_icd11_concepts", new_callable=AsyncMock, return_value=[]):
+        resp = client.get("/icd/cached")
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+
+def test_icd_get_concept_from_cache(client):
+    cached = {
+        "entity_id": "12345", "icd_code": "5A10", "title": "Diabetes mellitus",
+        "definition": "A metabolic disorder.", "raw_json": "{}", "cached_at": "2024-01-01T00:00:00+00:00",
+    }
+    with patch.dict("os.environ", {"ICD_CLIENT_ID": "x", "ICD_CLIENT_SECRET": "y"}), \
+         patch("db.get_icd11_concept", new_callable=AsyncMock, return_value=cached):
+        resp = client.get("/icd/concepts/12345")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["entity_id"] == "12345"
+        assert data["icd_code"] == "5A10"
+        assert data["cached"] is True
+
+
+def test_icd_delete_concept_not_cached(client):
+    with patch("db.delete_icd11_concept", new_callable=AsyncMock, return_value=False):
+        resp = client.delete("/icd/concepts/12345")
+        assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# dm+d router
+# ---------------------------------------------------------------------------
+
+def test_dmd_search_missing_query(client):
+    resp = client.get("/dmd/products")
+    assert resp.status_code == 422
+
+
+def test_dmd_search_returns_result(client):
+    mock_raw = {
+        "items": [{"conceptId": "39720411000001102", "pt": {"term": "Metformin 500mg tablets"}, "fsn": {"term": "Metformin 500mg tablets (product)"}}],
+        "total": 1,
+    }
+    with patch("domains.dmd.service.search_products", new_callable=AsyncMock, return_value=mock_raw):
+        resp = client.get("/dmd/products?q=metformin")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 1
+        assert data["items"][0]["dmd_id"] == "39720411000001102"
+        assert data["items"][0]["concept_type"] == "product"
+
+
+def test_dmd_list_cached_empty(client):
+    with patch("db.list_dmd_products", new_callable=AsyncMock, return_value=[]):
+        resp = client.get("/dmd/cached")
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+
+def test_dmd_get_product_from_cache(client):
+    cached = {
+        "dmd_id": "39720411000001102", "name": "Metformin 500mg tablets",
+        "concept_type": "product", "bnf_code": "0601023A0",
+        "raw_json": "{}", "cached_at": "2024-01-01T00:00:00+00:00",
+    }
+    with patch("db.get_dmd_product", new_callable=AsyncMock, return_value=cached):
+        resp = client.get("/dmd/products/39720411000001102")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["dmd_id"] == "39720411000001102"
+        assert data["bnf_code"] == "0601023A0"
+        assert data["cached"] is True
+
+
+def test_dmd_delete_product_not_cached(client):
+    with patch("db.delete_dmd_product", new_callable=AsyncMock, return_value=False):
+        resp = client.delete("/dmd/products/39720411000001102")
+        assert resp.status_code == 404

@@ -42,3 +42,13 @@ async def fetch(url: str) -> str:
         resp.raise_for_status()
         await asyncio.sleep(REQUEST_DELAY)
         return resp.text
+
+
+async def fetch_with_headers(url: str, headers: dict[str, str]) -> str:
+    """Fetch a URL with custom headers, respecting the shared rate limiter."""
+    client = get_client()
+    async with _semaphore:
+        resp = await client.get(url, headers=headers)
+        resp.raise_for_status()
+        await asyncio.sleep(REQUEST_DELAY)
+        return resp.text

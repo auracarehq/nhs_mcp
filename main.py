@@ -4,6 +4,8 @@ from fastapi import FastAPI, HTTPException
 
 import db
 from domains.models import SearchResult, TaskStatusResponse
+from domains.dmd.router import router as dmd_router
+from domains.icd.router import router as icd_router
 from domains.mhra.safety_updates.router import router as mhra_dsu_router
 from domains.nhs.conditions.router import router as conditions_router
 from domains.nhs.medicines.router import router as medicines_router
@@ -12,6 +14,7 @@ from domains.nhs.treatments.router import router as treatments_router
 from domains.nice.bnf.router import router as bnf_router
 from domains.nice.bnfc.router import router as bnfc_router
 from domains.nice.cks.router import router as cks_router
+from domains.open_prescribing.router import router as op_router
 from domains.snomed.router import router as snomed_router
 from scraper.client import close_client, init_client
 from tasks import cancel_task, get_task
@@ -27,14 +30,15 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Clinical Knowledge Scraper",
+    title="Clinical Knowledge MCP",
     description=(
-        "Scrapes clinical guidance sources and stores content in PostgreSQL as markdown "
-        "with YAML frontmatter. Sources: NHS Health A-Z (conditions, symptoms, medicines, "
-        "treatments), NICE (CKS, BNF, BNFc), MHRA Drug Safety Updates, and SNOMED CT "
-        "concept lookup via the Snowstorm API."
+        "Aggregates clinical guidance and terminology from NHS and international sources. "
+        "Sources: NHS Health A-Z (conditions, symptoms, medicines, treatments), "
+        "NICE (CKS, BNF, BNFc), MHRA Drug Safety Updates, SNOMED CT, "
+        "OpenPrescribing (NHS prescribing analytics), ICD-11 (WHO disease classification), "
+        "and dm+d (NHS Dictionary of Medicines and Devices)."
     ),
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
 
@@ -54,6 +58,15 @@ app.include_router(mhra_dsu_router)
 
 # SNOMED CT
 app.include_router(snomed_router)
+
+# OpenPrescribing
+app.include_router(op_router)
+
+# ICD-11
+app.include_router(icd_router)
+
+# dm+d
+app.include_router(dmd_router)
 
 
 @app.get(
