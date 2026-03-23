@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from sqlalchemy import Boolean, String, Text, select, delete as sa_delete, func
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -91,7 +92,16 @@ async def init_db() -> None:
         raw_url = raw_url.replace("postgres://", "postgresql+asyncpg://", 1)
     elif raw_url.startswith("postgresql://"):
         raw_url = raw_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    _engine = create_async_engine(raw_url, pool_size=5, max_overflow=0)
+    # asyncpg uses ssl=True, not sslmode=require — strip and translate
+    connect_args: dict = {}
+    if "sslmode=" in raw_url:
+        parsed = urlparse(raw_url)
+        query = parse_qs(parsed.query, keep_blank_values=True)
+        sslmode = query.pop("sslmode", [None])[0]
+        if sslmode in ("require", "verify-ca", "verify-full"):
+            connect_args["ssl"] = True
+        raw_url = urlunparse(parsed._replace(query=urlencode({k: v[0] for k, v in query.items()})))
+    _engine = create_async_engine(raw_url, pool_size=5, max_overflow=0, connect_args=connect_args)
     _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
