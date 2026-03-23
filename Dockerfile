@@ -12,3 +12,5 @@ RUN uv sync --frozen --no-install-project 2>/dev/null || uv sync --no-install-pr
 COPY . .
 
 EXPOSE 8888
+
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8888"]
