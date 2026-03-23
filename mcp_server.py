@@ -24,6 +24,7 @@ from domains.open_prescribing.service import spending_by_org as op_spending_by_o
 from domains.snomed.service import get_or_fetch as snomed_get_or_fetch
 from domains.snomed.service import search as snomed_search
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 mcp = FastMCP(
     "NHS Clinical Knowledge",
@@ -32,6 +33,9 @@ mcp = FastMCP(
         "clinical terminology codes (SNOMED CT, ICD-11), prescribing analytics, "
         "and NHS/NICE/MHRA guidance. All sources are official UK/WHO references."
     ),
+    # Disable DNS rebinding protection — this server is public-facing over HTTPS,
+    # so the Azure ingress handles security; localhost-only validation would block clients.
+    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
 )
 
 
